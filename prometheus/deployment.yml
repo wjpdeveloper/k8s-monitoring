@@ -1,0 +1,78 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    name: monitoring-prometheus
+  name: monitoring-prometheus
+  namespace: app-monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: monitoring-prometheus
+  template:
+    metadata:
+      labels:
+        app: monitoring-prometheus
+    spec:
+      securityContext:
+        runAsUser: 0
+        fsGroup: 0
+      serviceAccountName: prometheus-sa
+      containers:
+        - name: monitoring-prometheus
+          image: prom/prometheus:v2.14.0
+          imagePullPolicy: IfNotPresent
+          command:
+            - "/bin/prometheus"
+          args:
+            - "--config.file=/etc/prometheus/prometheus.yml"
+            - "--storage.tsdb.path=/var/monitoring/prometheus"
+            - "--storage.tsdb.retention.time=15d"
+            - "--web.external-url=http://${prometheusDomain}"
+            - "--web.route-prefix="
+          ports:
+            - containerPort: 9090
+              protocol: TCP
+          volumeMounts:
+            - name: prometheus-persistent-storage
+              mountPath: "/var/monitoring/prometheus"
+              subPath: prometheus
+            - name: prometheus-config-cm
+              mountPath: "/etc/prometheus"
+            - name: prometheus-rules-cm
+              mountPath: "/etc/rules"
+          resources:
+            requests:
+              cpu: 1024m
+              memory: 2000Mi
+            limits:
+              cpu: 4096m
+              memory: 6000Mi
+      volumes:
+        - name: prometheus-persistent-storage
+          persistentVolumeClaim:
+            claimName: prometheus-pvc
+        - name: prometheus-config-cm
+          configMap:
+            name: monitoring-prometheus-config
+        - name: prometheus-rules-cm
+          configMap:
+            name: monitoring-prometheus-rules
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: monitoring-prometheus
+  namespace: app-monitoring
+  labels:
+    app: monitoring-prometheus
+spec:
+  type: NodePort
+  ports:
+    - port: 9090
+      targetPort: 9090
+      protocol: TCP
+  selector:
+    app: monitoring-prometheus

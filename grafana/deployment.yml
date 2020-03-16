@@ -1,0 +1,85 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: monitoring-grafana
+  namespace: app-monitoring
+  labels:
+    app: monitoring-grafana
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: monitoring-grafana
+    spec:
+      initContainers:
+        - command:
+            - chown
+            - -R
+            - 472:472
+            - /var/lib/grafana
+          image: busybox:latest
+          name: volume-permissions
+          volumeMounts:
+            - mountPath: /var/lib/grafana
+              name: grafana-persistent-storage
+              readOnly: false
+      containers:
+        - image: grafana/grafana:6.4.4
+          name: monitoring-grafana
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              cpu: 100m
+              memory: 200Mi
+            limits:
+              cpu: 1024m
+              memory: 4000Mi
+          env:
+            - name: GF_SERVER_ROOT_URL
+              value: "http://${grafanaDomain}"
+            - name: GF_SERVER_DOMAIN
+              value: "${grafanaDomain}"
+            - name: GF_SERVER_ENABLE_GZIP
+              value: "true"
+            - name: GF_AUTH_ANONYMOUS_ENABLED
+              value: "true"
+            - name: GF_SECURITY_ADMIN_USER
+              value: "${adminUser}"
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              value: "${adminPasswd}"
+            - name: GF_USERS_ALLOW_ORG_CREATE
+              value: "false"
+            - name: GF_EXTERNAL_IMAGE_STOREAGE_PROVIDER
+              value: "local"
+            - name: GF_DATABASE_PATH
+              value: "/var/lib/grafana/mongo/grafana.mongo"
+            - name: GF_PATHS_PROVISIONING
+              value: "/var/lib/grafana/provisioning"
+            - name: GF_INSTALL_PLUGINS
+              value: "${grafanaPlugins}"
+          volumeMounts:
+            - name: grafana-persistent-storage
+              mountPath: /var/lib/grafana
+              readOnly: false
+      volumes:
+        - name: grafana-persistent-storage
+          persistentVolumeClaim:
+            claimName: grafana-pvc
+            readOnly: false
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: monitoring-grafana
+  namespace: app-monitoring
+  labels:
+    app: monitoring-grafana
+spec:
+  type: NodePort
+  ports:
+    - port: 3000
+      targetPort: 3000
+  selector:
+    app: monitoring-grafana

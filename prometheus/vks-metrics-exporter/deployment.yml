@@ -1,0 +1,80 @@
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  name: monitoring-prometheus-vks-metrics
+  namespace: app-monitoring
+spec:
+  selector:
+    matchLabels:
+      app: monitoring-prometheus-vks-metrics
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: monitoring-prometheus-vks-metrics
+    spec:
+      serviceAccountName: vks-state-metrics-sa
+      containers:
+        - name: monitoring-prometheus-vks-metrics
+          image: xianyuluo/kube-state-metrics:v1.3.1
+          ports:
+            - name: http-metrics
+              containerPort: 8080
+            - name: telemetry
+              containerPort: 8081
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            timeoutSeconds: 5
+        - name: monitoring-prometheus-vks-metrics-addon-resizer
+          image: xianyuluo/addon-resizer:1.7
+          resources:
+            limits:
+              cpu: 500m
+              memory: 200Mi
+            requests:
+              cpu: 100m
+              memory: 100Mi
+          env:
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MY_POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          command:
+            - /pod_nanny
+            - --container=monitoring-prometheus-vks-metrics
+            - --cpu=100m
+            - --extra-cpu=1m
+            - --memory=100Mi
+            - --extra-memory=2Mi
+            - --threshold=5
+            - --deployment=monitoring-prometheus-vks-metrics
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: monitoring-prometheus-vks-metrics
+  namespace: app-monitoring
+  labels:
+    app: monitoring-prometheus-vks-metrics
+  annotations:
+    prometheus.io/scrape: 'true'
+spec:
+  ports:
+    - name: http-metrics
+      port: 8080
+      targetPort: http-metrics
+      protocol: TCP
+    - name: telemetry
+      port: 8081
+      targetPort: telemetry
+      protocol: TCP
+  selector:
+    app: monitoring-prometheus-vks-metrics

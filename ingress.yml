@@ -1,0 +1,32 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: monitoring-ingress
+  namespace: app-monitoring
+  annotations:
+    ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  rules:
+    - host: ${grafanaDomain}
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: monitoring-grafana
+              servicePort: 3000
+
+    - host: ${prometheusDomain}
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: monitoring-prometheus
+              servicePort: 9090
+
+    - host: ${alertmanagerDomain}
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: monitoring-alertmanager
+              servicePort: 9093

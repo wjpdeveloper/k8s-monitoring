@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: monitoring-prometheus-rules
+  namespace: app-monitoring
+data:
+  general.rules: |
+    groups:
+    - name: general.rules
+      rules:
+      - alert: InstanceDown
+        expr: up == 0
+        for: 10s
+        labels:
+          severity: error
+        annotations:
+          description: " {{ $labels.instance }} is shutdown."
+
+  app.rules: |
+    groups:
+    - name: app.rules
+      rules:
+      - alert: process_threads
+        expr: process_threads{app="app-service"} > 250
+        for: 10s
+        labels:
+          severity: warn
+        annotations:
+          description: "process threads is more than 250，current value: {{$value}}。"
+      - alert: process_cpu_usage
+        expr: process_cpu_usage{app="app-service"} > 0.75
+        for: 10s
+        labels:
+          severity: warn
+        annotations:
+          description: "process cpu usage is up to 0.75，current value: {{$value}}。"

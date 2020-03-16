@@ -1,0 +1,61 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    name: monitoring-alertmanager
+  name: monitoring-alertmanager
+  namespace: app-monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: monitoring-alertmanager
+  template:
+    metadata:
+      labels:
+        app: monitoring-alertmanager
+    spec:
+      serviceAccountName: prometheus-sa
+      containers:
+        - name: monitoring-alertmanager
+          image: prom/alertmanager:v0.19.0
+          args:
+            - "--config.file=/etc/alertmanager/alertmanager.yml"
+            - "--storage.path=/alertmanager"
+            - "--web.external-url=http://${alertmanagerDomain}"
+            - "--web.route-prefix="
+            - "--log.level=debug"
+          ports:
+            - containerPort: 9093
+              protocol: TCP
+          volumeMounts:
+            - name: alertmanager-config-cm
+              mountPath: "/etc/alertmanager"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100Mi
+            limits:
+              cpu: 200m
+              memory: 200Mi
+      volumes:
+        - name: alertmanager-config-cm
+          configMap:
+            name: monitoring-alertmanager-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    name: monitoring-alertmanager
+  name: monitoring-alertmanager
+  namespace: app-monitoring
+spec:
+  type: NodePort
+  ports:
+    - port: 9093
+      targetPort: 9093
+      protocol: TCP
+  selector:
+    app: monitoring-alertmanager
