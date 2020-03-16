@@ -13,7 +13,7 @@ Below **variables** need to be replaced with real value.
 | `${alertmanagerDomain}`   | domain of alertmanager to visit    |
 | `${adminUser}`            | grafana admin username             |
 | `${adminPasswd}`          | grafana admin password             |
-| `${adminPasswd}`          | grafana plugins to add             |
+| `${grafanaPlugins}`          | grafana plugins to add             |
 
 storage used **cinder-ssd**, you can use any other provisioners, list at https://kubernetes.io/docs/concepts/storage/storage-classes/.
 
